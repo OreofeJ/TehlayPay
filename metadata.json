@@ -1,0 +1,6 @@
+{
+  "name": "TehlayPay - Policy-Controlled AI Purchasing Agent",
+  "description": "Policy-controlled AI purchasing agent for small businesses with deterministic server-side policy enforcement, Channel3 product search, and PayPal Sandbox checkout.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,911 @@
+# TEHLAYPAY — PHASE 3 FINAL IMPLEMENTATION PROMPT
+## Procurement Intelligence Layer
+### Policy What-If Simulator | Intelligent Product Comparison | Procurement Decision Passport
+
+## 1. Project context
+
+You are working on the existing TehlayPay application, an AI-assisted procurement policy and purchasing platform being developed for the PayPal AI Hackathon 2026.
+
+TehlayPay helps individuals, SMEs and organisations make informed and policy-compliant purchasing decisions.
+
+Its core principle is:
+
+**AI can recommend. Your rules decide.**
+
+The existing application workflow is:
+
+1. Buyer submits a natural-language procurement request.
+2. Gemini extracts procurement requirements.
+3. Channel3 retrieves relevant products.
+4. TehlayPay's deterministic policy engine evaluates product eligibility.
+5. The buyer reviews product recommendations and policy explanations.
+6. The buyer explicitly approves an eligible purchase.
+7. PayPal Sandbox handles the purchasing process.
+8. TehlayPay records procurement decisions and transaction events in its audit store.
+
+The application already includes a React frontend, Node.js/TypeScript backend, Gemini integration, Channel3 product discovery, deterministic policy evaluation, AG Grid integration, PayPal Sandbox checkout and audit records.
+
+A separate Procurement Analytics Dashboard is also being developed. It must remain a standalone feature.
+
+This Phase 3 implementation covers only three additional features:
+
+1. Policy What-If Simulator.
+2. Intelligent Product Comparison.
+3. Procurement Decision Passport.
+
+Do not rebuild the dashboard or duplicate its reporting functions.
+
+---
+
+## 2. Mandatory pre-implementation inspection
+
+Before modifying the project, inspect the existing application and understand its current architecture.
+
+Review at least:
+
+- `src/policyEngine/policyEngine.ts`
+- `src/shared/categories.ts`
+- `src/shared/types.ts`
+- `server/geminiService.ts`
+- `server/channel3Adapter.ts`
+- `server/auditStore.ts`
+- `server.ts`
+- `src/App.tsx`
+- `src/components/PolicySummaryCard.tsx`
+- `src/components/ProductGrid.tsx`
+- `src/components/ApprovalModal.tsx`
+- Existing AG Grid implementation.
+- Existing policy and checkout tests.
+
+Also confirm the implementation status of:
+
+- Procurement Analytics Dashboard.
+
+Do not assume that previous phases have been completed simply because they were planned.
+
+Preserve all working functionality.
+
+Do not rewrite the application or replace its existing architecture unnecessarily.
+
+---
+
+# FEATURE 1 — POLICY WHAT-IF SIMULATOR
+
+## 3. Objective
+
+Build a procurement policy simulation feature that allows buyers to understand how changing a procurement requirement would affect product eligibility before changing their actual procurement policy.
+
+The simulator should answer questions such as:
+
+- What happens if I increase my budget?
+- Which products become eligible if I allow refurbished products?
+- What happens if I change the minimum RAM requirement?
+- Which products would remain blocked?
+- Which products would move from REVIEW to PASS?
+- Which procurement requirements are preventing the purchase?
+
+This feature should demonstrate explainable, deterministic procurement intelligence.
+
+It should help buyers make better decisions without weakening their procurement controls.
+
+## 4. Simulator interface
+
+Add an accessible action labelled:
+
+**Simulate Policy Changes**
+
+It should be available from an appropriate procurement results or policy summary section.
+
+When activated, show a dedicated simulation panel or modal.
+
+Allow the buyer to modify relevant policy parameters temporarily.
+
+Possible simulation controls include:
+
+- Maximum budget.
+- Permitted product condition.
+- Category-specific target specifications.
+- Relevant compatibility requirements.
+
+Only show specification controls relevant to the procurement category.
+
+Examples:
+
+- Computing: RAM, storage and other explicitly requested requirements.
+- Paper: size and GSM.
+- Tools: voltage and type.
+- Furniture: dimensions and material.
+- Cleaning products: form, volume and intended use.
+
+Do not show irrelevant RAM requirements for office furniture or paper.
+
+## 5. Simulation behaviour
+
+The simulator must use the existing deterministic policy engine or a shared evaluation function that produces the same policy outcomes.
+
+Do not create a separate, inconsistent policy evaluation engine.
+
+When a buyer changes a simulated policy:
+
+1. Preserve the original active policy.
+2. Create an isolated simulation copy.
+3. Evaluate the relevant products against the simulated policy.
+4. Compare the new outcomes with the original outcomes.
+5. Display what changed and why.
+6. Allow the buyer to discard the simulation or deliberately apply the proposed changes through the existing policy-update workflow, where supported.
+
+Simulation results must not automatically become active procurement policy.
+
+### Example
+
+Original policy:
+
+- Budget: $800.
+- Minimum RAM: 16GB.
+- Permitted condition: New only.
+
+A laptop priced at $899 is BLOCKED because it exceeds the budget.
+
+Simulated policy:
+
+- Budget: $1,000.
+- Minimum RAM: 16GB.
+- Permitted condition: New only.
+
+The same product may become PASS if all other mandatory requirements are satisfied.
+
+The simulator should explain:
+
+"Your simulated budget increase from $800 to $1,000 removes the budget violation. This product now satisfies the evaluated requirements."
+
+Do not claim PASS if other requirements remain unmet.
+
+### Consumable protection
+
+Consumable restrictions must remain immutable in simulation.
+
+Paper, printer ink, toner and cleaning consumables must remain New-only.
+
+A buyer must not be able to simulate a refurbished consumable becoming eligible.
+
+This rule must be enforced in the same trusted policy logic used for normal procurement.
+
+## 6. Original versus simulated decision comparison
+
+Display the original and simulated outcomes side by side.
+
+Suggested comparison:
+
+| Product | Original decision | Simulated decision |
+|---|---|---|
+| Product A | BLOCKED | PASS |
+| Product B | REVIEW | REVIEW |
+| Product C | PASS | PASS |
+
+Use clear visual indicators for:
+
+- Unchanged decisions.
+- Improved decisions.
+- Worsened decisions.
+
+Provide a short explanation of the rule responsible for each change.
+
+Do not calculate artificial savings or benefits.
+
+Where useful, show the number of products whose eligibility changed.
+
+## 7. Simulation safety
+
+This feature must be strictly separated from actual purchasing.
+
+It must never:
+
+- Change the active policy automatically.
+- Modify historical audit records.
+- Approve a product.
+- Create a PayPal order.
+- Capture a payment.
+- Release or create checkout locks.
+- Bypass existing server-side policy enforcement.
+
+A simulation result is not an approval.
+
+If the buyer chooses to apply a simulated policy, the change must pass through the existing policy-update mechanism and all applicable validation.
+
+Clearly label simulated decisions as SIMULATED so that users cannot mistake them for actual procurement decisions.
+
+---
+
+# FEATURE 2 — INTELLIGENT PRODUCT COMPARISON
+
+## 8. Objective
+
+Develop an intelligent product comparison feature that allows buyers to compare multiple products retrieved through Channel3 against their original procurement requirements.
+
+This should be a central demonstration of TehlayPay's Channel3 integration and AG Grid functionality.
+
+The goal is not simply to identify the cheapest product.
+
+The system should identify the most suitable policy-compliant products and explain the trade-offs between available options.
+
+## 9. Product comparison interface
+
+Introduce a clearly accessible action:
+
+**Compare Products**
+
+Allow buyers to select multiple products from the current Channel3 search results.
+
+Use AG Grid for the comparison experience wherever practical.
+
+Support:
+
+- Sorting.
+- Filtering.
+- Column selection where supported.
+- Clear policy outcome indicators.
+- Side-by-side specification comparison.
+- Responsive layout.
+
+Avoid creating a second unrelated product database.
+
+Use the actual product records already retrieved through Channel3.
+
+## 10. Comparison dimensions
+
+Compare products using available, trustworthy information.
+
+Possible comparison dimensions include:
+
+### A. Price
+
+- Unit price.
+- Currency.
+- Requested quantity, if available.
+- Estimated line total, if reliable.
+- Whether the product is within budget.
+
+Never combine different currencies into a single ranking without a reliable conversion source.
+
+### B. Product specifications
+
+Compare the specifications relevant to the procurement category.
+
+Examples:
+
+Computing:
+- RAM.
+- Storage.
+- Processor.
+- Screen size.
+- Connectivity.
+
+Office supplies:
+- Paper size.
+- GSM.
+- Sheets per pack.
+
+Printer consumables:
+- Compatibility.
+- Colour.
+- Yield.
+
+Tools:
+- Voltage.
+- Equipment type.
+- Included accessories.
+
+Furniture:
+- Dimensions.
+- Material.
+- Configuration.
+
+Networking:
+- Port count.
+- Speed.
+- Connectivity.
+
+Do not invent missing specifications.
+
+### C. Product condition
+
+Show the actual condition where supplied and verified.
+
+If condition is unavailable, clearly show that it is unconfirmed.
+
+### D. Supplier information
+
+Show available supplier or merchant information.
+
+Do not invent:
+- Supplier reliability scores.
+- Customer ratings.
+- Stock availability.
+- Delivery times.
+- Shipping costs.
+
+Only show information returned by a trusted source.
+
+## 11. Deterministic policy evaluation
+
+Each compared product must retain its actual policy evaluation result.
+
+Display:
+
+- PASS.
+- BLOCKED.
+- REVIEW.
+
+The comparison interface must not calculate its own independent PASS result.
+
+Use the existing deterministic policy engine.
+
+A product must never be presented as compliant simply because its price or specifications look attractive.
+
+For each product, display a concise explanation of its outcome.
+
+Examples:
+
+PASS:
+"Meets the requested specifications and is within budget."
+
+BLOCKED:
+"Exceeds the maximum permitted budget."
+
+REVIEW:
+"Storage capacity is not confirmed in the supplier listing."
+
+## 12. Intelligent recommendation
+
+Introduce a clearly labelled recommendation section:
+
+**TehlayPay Recommendation**
+
+The system should identify:
+
+1. Lowest-priced compliant product.
+2. Best specification match among compliant products.
+3. Products requiring review.
+4. Products blocked by policy.
+
+Where several compliant products exist, identify a suitable recommendation using transparent criteria.
+
+A reasonable recommendation hierarchy is:
+
+- Must satisfy all mandatory requirements.
+- Must not violate the budget or condition policy.
+- Must have sufficient evidence for the relevant mandatory specifications.
+- Among eligible options, compare price and requested specifications.
+- Explain why one option is preferred over another.
+
+Do not create arbitrary hidden scoring systems.
+
+If two products are equally suitable, explain that there is no meaningful difference based on the available evidence.
+
+If no product passes, clearly state:
+
+"No product currently satisfies all procurement requirements."
+
+Never recommend a BLOCKED product as the preferred purchasing option.
+
+A REVIEW product must not be presented as fully compliant.
+
+## 13. Comparison evidence and transparency
+
+For each comparison, show the basis of the recommendation.
+
+Examples:
+
+"Product A is the lowest-priced compliant option. It meets the requested RAM and storage specifications and is within the buyer's budget."
+
+"Product B costs less, but its storage capacity is not confirmed. It therefore requires review."
+
+"Product C is blocked because its price exceeds the permitted budget."
+
+Where product attributes are unavailable, display "Not provided" or "Unverified".
+
+Never convert missing information into a positive compliance claim.
+
+## 14. Buyer selection
+
+Allow the buyer to select a product from the comparison results.
+
+The selected product should return to the existing procurement approval workflow.
+
+Before checkout:
+
+- Re-fetch or otherwise verify trusted product information as required by the existing architecture.
+- Re-evaluate the product against the current active policy.
+- Confirm that the product still passes.
+- Require explicit buyer approval.
+
+The comparison recommendation must never directly create a PayPal order.
+
+If the product's price or attributes have changed since the comparison, evaluate the updated information and explain the change.
+
+---
+
+# FEATURE 3 — PROCUREMENT DECISION PASSPORT
+
+## 15. Objective
+
+Create a structured, downloadable procurement decision record called:
+
+**TehlayPay Procurement Decision Passport**
+
+The Passport should provide a traceable record of why a product was evaluated, whether it satisfied procurement policy, whether the buyer approved it and what happened during the PayPal transaction.
+
+It should demonstrate accountability, transparency and practical organisational value.
+
+The Passport must be based on actual procurement and audit records.
+
+It must not be a decorative PDF containing unverified information.
+
+## 16. When a Passport can be generated
+
+Allow a buyer to generate a Passport after a product has been evaluated.
+
+The Passport should accurately reflect the procurement stage.
+
+Possible statuses:
+
+- Evaluated.
+- PASS.
+- BLOCKED.
+- REVIEW.
+- Buyer approved.
+- Buyer rejected.
+- PayPal order created.
+- Payment captured.
+- Payment failed.
+- Cancelled.
+
+A Passport generated before checkout must clearly indicate that payment has not yet been completed.
+
+The Passport may be updated or regenerated when additional verified procurement events occur.
+
+Do not silently overwrite or misrepresent an earlier decision record.
+
+## 17. Passport content
+
+The document should include the following sections.
+
+### A. Document identity
+
+- TehlayPay branding.
+- Title: Procurement Decision Passport.
+- Unique Passport reference.
+- Date and time generated.
+- Relevant procurement request reference.
+
+Use a unique identifier generated through the existing backend conventions.
+
+Do not invent an existing transaction reference.
+
+### B. Original procurement request
+
+Include:
+
+- Original natural-language buyer request.
+- Extracted target item.
+- Procurement category.
+- Subcategory, where available.
+- Requested quantity.
+- Budget ceiling.
+- Currency.
+- Permitted condition.
+- Mandatory specifications.
+
+Clearly distinguish buyer-stated requirements from AI-extracted interpretations.
+
+### C. Product information
+
+Include available, verified information:
+
+- Product title.
+- Product description.
+- Supplier or merchant.
+- Product URL.
+- Product price.
+- Currency.
+- Condition.
+- Relevant specifications.
+- Requested quantity.
+- Estimated line total, where reliable.
+
+Do not invent missing product details.
+
+### D. Policy evaluation
+
+Include:
+
+- Overall policy result.
+- Individual policy checks where recorded.
+- Budget compliance.
+- Condition compliance.
+- Relevant specification compliance.
+- Compatibility evaluation where applicable.
+- Reasons for PASS, BLOCKED or REVIEW.
+
+Make the result understandable to a non-technical reader.
+
+### E. Procurement decision explanation
+
+Provide a concise explanation of why the product passed, was blocked or requires review.
+
+For example:
+
+"The selected product was evaluated against the buyer's $800 budget ceiling and minimum 16GB RAM requirement. It met the RAM requirement but exceeded the maximum budget, resulting in a BLOCKED decision."
+
+Use actual evaluation data.
+
+### F. Buyer decision
+
+Where recorded, include:
+
+- Whether the buyer approved or rejected the product.
+- Approval or rejection timestamp.
+- Approval reference.
+- Relevant decision status.
+
+Do not invent an approver's identity.
+
+### G. Payment record
+
+Where applicable, include:
+
+- PayPal order reference.
+- Order creation status.
+- Buyer approval status.
+- Payment capture status.
+- Verified capture reference.
+- Captured amount.
+- Currency.
+- Relevant timestamps.
+
+Only show successful payment capture if PayPal has confirmed it and the backend has recorded the verified result.
+
+An order being created or buyer-approved is not proof of payment completion.
+
+### H. Audit information
+
+Include:
+
+- Audit reference.
+- Relevant event timestamps.
+- Available audit integrity verification information.
+- Passport generation timestamp.
+
+Do not expose internal secrets, API keys, authentication tokens or unnecessary personal information.
+
+---
+
+## 18. Passport format and export
+
+Generate a professional downloadable PDF document if the existing project can support this safely and efficiently.
+
+Use a suitable PDF library already installed, if available.
+
+Avoid introducing a large dependency solely for document styling.
+
+If PDF generation is impractical within the existing architecture, implement a structured printable document as a safe alternative and report the limitation.
+
+The Passport should include:
+
+- Professional layout.
+- Clear section headings.
+- TehlayPay branding.
+- Readable typography.
+- Clear PASS, BLOCKED and REVIEW indicators.
+- Document reference.
+- Page numbering where applicable.
+
+The Passport must remain readable when printed.
+
+Do not present a Passport as a legally certified procurement document or an independently verified third-party certificate.
+
+It is a TehlayPay-generated procurement decision record.
+
+## 19. Passport verification and integrity
+
+The Passport should contain a unique reference that can be matched to its underlying audit record.
+
+If the existing audit store supports integrity checksums or hashes, use the existing mechanism.
+
+Do not invent a cryptographic verification system that is not implemented.
+
+If feasible, provide a verification action within the application that retrieves the relevant stored record and confirms whether the Passport's reference corresponds to an existing audit record.
+
+Clearly distinguish:
+- Record exists.
+- Record matches stored audit data.
+- Payment capture was independently confirmed by PayPal.
+
+Do not claim cryptographic authenticity unless the implementation actually verifies it.
+
+Do not expose sensitive internal audit details publicly.
+
+---
+
+# 20. Integration between the three features
+
+The three features should work together rather than operate as unrelated modules.
+
+### Example end-to-end workflow
+
+A buyer requests:
+
+"I need a laptop with at least 16GB RAM and 512GB SSD, with a budget of $800."
+
+**Step 1 — Existing procurement workflow**
+
+Gemini extracts the requirements.
+
+Channel3 retrieves relevant products.
+
+The deterministic policy engine evaluates the products.
+
+**Step 2 — Intelligent Product Comparison**
+
+The buyer selects several products and compares them.
+
+TehlayPay identifies:
+- The lowest-priced compliant product.
+- Products that require review.
+- Products blocked by policy.
+
+The buyer sees why the recommendation was made.
+
+**Step 3 — Policy What-If Simulator**
+
+If the preferred product is blocked because it exceeds the budget, the buyer can simulate an alternative budget.
+
+The simulator shows how the product's eligibility changes.
+
+The original policy remains unchanged unless the buyer explicitly applies a valid policy update.
+
+**Step 4 — Existing approval and checkout**
+
+The buyer selects a product that passes the active policy.
+
+The server revalidates the product and policy.
+
+The buyer explicitly approves the purchase.
+
+PayPal Sandbox handles checkout.
+
+**Step 5 — Procurement Decision Passport**
+
+TehlayPay generates a Passport containing the procurement request, product information, policy evaluation and relevant buyer/payment events.
+
+The Passport accurately reflects whether payment has actually been captured.
+
+---
+
+# 21. Integration with the standalone Procurement Analytics Dashboard
+
+The Procurement Analytics Dashboard is a separate feature and must remain separate.
+
+However, the three new features should generate and expose useful data to the existing analytics and audit systems.
+
+Where appropriate:
+
+- Actual procurement decisions should appear in analytics.
+- Simulated decisions must not be counted as actual procurement outcomes.
+- Product comparisons should not create duplicate procurement requests.
+- Passport generation must not count as a new procurement transaction.
+- Successfully captured payments should appear in captured payment analytics.
+- Historical policy decisions must remain unchanged.
+
+Do not duplicate analytics calculations in the three new features.
+
+Reuse existing shared data services where appropriate.
+
+---
+
+# 22. Security and architecture requirements
+
+This section is mandatory.
+
+Preserve all existing security controls:
+
+1. Server-side budget validation.
+2. Server-side currency validation.
+3. Server-side condition enforcement.
+4. Consumable New-only enforcement.
+5. Server-side policy re-evaluation before checkout.
+6. Trusted server-side product price verification.
+7. Rejection of manipulated frontend PASS decisions.
+8. Rejection of BLOCKED and REVIEW products at checkout.
+9. Explicit buyer approval.
+10. Duplicate-order protection and checkout locks.
+11. PayPal capture verification.
+12. Existing audit integrity mechanisms.
+
+The new features must not weaken the server as the final purchasing authority.
+
+Additional requirements:
+
+- Simulation must be isolated from actual procurement policy.
+- Product comparison must use real policy evaluation results.
+- Recommendations must never override BLOCKED or REVIEW outcomes.
+- Passport generation must be read-only with respect to purchasing decisions.
+- Historical audit records must not be silently modified.
+- Simulated outcomes must not be recorded as actual purchasing outcomes.
+- Product comparison must not create PayPal orders.
+- Passport generation must not trigger payment actions.
+
+Continue using PayPal Sandbox.
+
+Do not expose API credentials or change existing payment configuration.
+
+---
+
+# 23. Testing requirements
+
+Add tests for each feature and preserve all existing tests.
+
+### Policy What-If Simulator
+
+1. Simulated budget changes do not modify the active policy.
+2. Simulated outcomes use the deterministic policy engine.
+3. A product may change from BLOCKED to PASS when a simulated budget increase resolves its only violation.
+4. A product remains BLOCKED when another mandatory requirement is violated.
+5. Missing critical specifications remain REVIEW.
+6. Consumables remain New-only in simulation.
+7. Simulation does not create PayPal orders.
+8. Simulation does not modify historical audit records.
+9. Discarding a simulation leaves the active policy unchanged.
+10. Applying a policy change uses the existing validated policy-update workflow.
+
+### Intelligent Product Comparison
+
+11. Comparison uses actual Channel3 product data.
+12. Different currencies are not incorrectly compared as equivalent amounts.
+13. Missing specifications remain unverified.
+14. Each product receives its existing deterministic policy result.
+15. BLOCKED products are never recommended as eligible purchases.
+16. REVIEW products are not presented as compliant.
+17. Lowest-priced compliant product is correctly identified.
+18. Recommendation explanations match the underlying policy results.
+19. Product selection returns to the existing approval workflow.
+20. Updated product prices are revalidated before checkout.
+21. Product comparison does not create duplicate procurement requests or PayPal orders.
+
+### Procurement Decision Passport
+
+22. A Passport can be generated for a PASS evaluation.
+23. A Passport can accurately represent BLOCKED and REVIEW decisions.
+24. Passport references are unique.
+25. Original procurement requirements are represented accurately.
+26. Missing product information is not fabricated.
+27. Buyer approval status is represented accurately.
+28. An unapproved order is not labelled as approved.
+29. A created PayPal order is not labelled as captured payment.
+30. Only verified successful PayPal capture is represented as completed payment.
+31. Passport generation does not modify audit records.
+32. Passport references match their underlying records.
+33. PDF or printable output is generated correctly.
+
+Also run all existing policy-engine and checkout tests.
+
+Do not remove or weaken existing tests to achieve a passing result.
+
+---
+
+# 24. Implementation stages
+
+Implement in the following order.
+
+### Stage 1 — Architecture review
+
+Inspect existing data structures and identify the smallest safe integration points.
+
+Provide a short report identifying any missing prerequisites.
+
+### Stage 2 — Policy What-If Simulator
+
+Implement isolated simulation, side-by-side outcome comparison and explanations.
+
+Test simulation isolation before proceeding.
+
+### Stage 3 — Intelligent Product Comparison
+
+Implement AG Grid comparison, deterministic policy evaluation and transparent recommendation logic.
+
+Verify that the buyer can select an eligible product and return to the existing approval workflow.
+
+### Stage 4 — Procurement Decision Passport
+
+Implement Passport data assembly, unique reference generation, document generation and accurate payment-state representation.
+
+### Stage 5 — Cross-feature integration
+
+Connect the features to the existing procurement workflow and standalone analytics dashboard without duplicating records or modifying historical decisions.
+
+### Stage 6 — Regression testing
+
+Run all existing and new tests.
+
+Run TypeScript checks and the production build.
+
+Verify that the development server starts successfully.
+
+---
+
+# 25. Strict restrictions
+
+Do not:
+
+- Rewrite the entire application.
+- Replace the existing deterministic policy engine.
+- Allow Gemini to authorize purchases.
+- Allow simulation to alter actual policies automatically.
+- Recommend BLOCKED products as eligible purchases.
+- Treat REVIEW products as fully compliant.
+- Fabricate supplier data, product attributes or financial information.
+- Count simulated outcomes as real procurement decisions.
+- Generate fake audit records.
+- Claim a payment was completed without verified PayPal capture.
+- Modify historical audit records unnecessarily.
+- Weaken consumable New-only enforcement.
+- Change existing PayPal Sandbox configuration.
+- Create or capture actual PayPal orders during tests.
+- Expose API keys or secrets.
+- Deploy the application.
+- Introduce unnecessary dependencies.
+- Remove existing tests.
+
+Prioritise incremental changes and preserve all working functionality.
+
+If a feature requires a major architectural change, explain the issue and recommend the smallest safe alternative before implementing it.
+
+---
+
+# 26. Final implementation report
+
+After implementation, provide a detailed report containing:
+
+1. Files inspected.
+2. Files modified.
+3. Policy What-If Simulator functionality implemented.
+4. Simulation isolation and policy protection.
+5. Intelligent Product Comparison functionality.
+6. AG Grid integration.
+7. Recommendation methodology.
+8. Procurement Decision Passport functionality.
+9. PDF or printable document implementation.
+10. Passport reference and audit verification approach.
+11. Integration with existing procurement workflow.
+12. Integration with the standalone analytics dashboard.
+13. Security controls preserved.
+14. New tests added.
+15. Total tests actually executed.
+16. Exact test results.
+17. TypeScript check results.
+18. Production build results.
+19. Known limitations.
+20. Manual tests still outstanding.
+
+Clearly distinguish implemented functionality from features that are only proposed or partially implemented.
+
+Do not claim a live Channel3 search or PayPal transaction was tested unless it was actually performed.
+
+---
+
+# 27. Definition of success
+
+Phase 3 is successful when TehlayPay can demonstrate three connected capabilities:
+
+**Policy What-If Simulator**
+A buyer can explore alternative procurement rules and understand their impact without weakening or changing active policy automatically.
+
+**Intelligent Product Comparison**
+A buyer can compare actual Channel3 products using AG Grid, understand their policy outcomes and identify the most suitable compliant option.
+
+**Procurement Decision Passport**
+A buyer can generate a professional, traceable record of the procurement request, product evidence, policy decision, approval and verified payment status.
+
+Together, these features should establish TehlayPay as an intelligent procurement governance platform rather than simply an AI-powered shopping application.
+
+**Final instruction:** Prioritise demonstrable functionality, data accuracy, security and a polished end-to-end experience. Protect the existing application. Implement the smallest reliable changes needed to achieve the three features before considering additional enhancements.
