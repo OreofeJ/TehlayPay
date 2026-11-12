@@ -10,7 +10,7 @@ It transforms natural-language purchasing requests into structured procurement r
 Rather than allowing an AI model to make purchasing decisions, TehlayPay separates AI interpretation from policy enforcement and payment authorisation.
 
 **Live Demo:** https://tlp-2-studio.ai.studio/  
-**Source Code:** https://github.com/OreofeJ/TehlayPay_v1  
+**Source Code:** https://github.com/OreofeJ/TehlayPay  
 **Project:** PayPal AI Hackathon 2026  
 **Payment Environment:** PayPal Sandbox
 
